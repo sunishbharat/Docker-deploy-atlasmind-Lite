@@ -35,7 +35,7 @@ services:
       driver: "none"
     volumes:
       - ollama_models:/root/.ollama
-      - ../ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
+      - ./ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
     entrypoint: [ "/bin/sh", "/ollama-entrypoint.sh" ]
     ports:
       - "11434:11434"

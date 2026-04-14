@@ -4,7 +4,7 @@ set -e
 MODEL="${JQL_LOCAL_MODEL:-qwen2.5:3b-instruct-q4_K_M}"
 
 echo "[ollama] Starting server..."
-ollama serve > /dev/null 2>&1 &
+ollama serve &
 OLLAMA_PID=$!
 
 echo "[ollama] Waiting for API..."
