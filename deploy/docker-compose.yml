@@ -49,7 +49,7 @@ services:
 
   # -- 3. atlasmind-Lite backend ----------------------------------------------
   atlasmind:
-    image: atlasmind-lite-cpu:latest
+    image: ghcr.io/sunishbharat/atlasmind-lite-cpu:latest
     container_name: atlasmind-lite-cpu
     networks:
       - default
