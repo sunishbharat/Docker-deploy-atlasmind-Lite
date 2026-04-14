@@ -1,0 +1,22 @@
+# Environment variables — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Docker override files
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/

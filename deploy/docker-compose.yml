@@ -1,0 +1,105 @@
+# -- atlasmind-Lite Stack -------------------------------------------------------
+# Prerequisites: Docker Desktop (or Docker Engine on Linux)
+# Usage:
+#   1. cp .env.example .env  — fill in POSTGRES_PASSWORD at minimum
+#   2. ./start.sh                        — Groq backend
+#      ./start.sh --profile ollama       — local Ollama backend
+# -----------------------------------------------------------------------------
+
+services:
+
+  # -- 1. pgvector database ---------------------------------------------------
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: atlasmind-lite-db
+    environment:
+      POSTGRES_DB: jql_vectordb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d jql_vectordb" ]
+      interval: 30s
+      timeout: 30s
+      retries: 10
+    restart: unless-stopped
+
+  # -- 2. Ollama (local LLM) --------------------------------------------------
+  # Only started when --profile ollama is passed. Skipped in Groq mode.
+  ollama:
+    profiles: [ ollama ]
+    image: ollama/ollama:latest
+    container_name: atlasmind-lite-ollama
+    logging:
+      driver: "none"
+    volumes:
+      - ollama_models:/root/.ollama
+      - ../ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
+    entrypoint: [ "/bin/sh", "/ollama-entrypoint.sh" ]
+    environment:
+      JQL_LOCAL_MODEL: ${JQL_LOCAL_MODEL:-qwen2.5:3b-instruct-q4_K_M}
+    healthcheck:
+      test: [ "CMD-SHELL", "ollama list 2>/dev/null | grep -q \"$$JQL_LOCAL_MODEL\" || exit 1" ]
+      interval: 30s
+      timeout: 30s
+      retries: 40
+      start_period: 30s
+    restart: unless-stopped
+
+  # -- 3. atlasmind-Lite backend ----------------------------------------------
+  atlasmind:
+    image: atlasmind-lite-cpu:latest
+    container_name: atlasmind-lite-cpu
+    networks:
+      - default
+      - shared
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/jql_vectordb
+      JQL_OLLAMA_URL: http://ollama:11434
+      JQL_LOCAL_MODEL: ${JQL_LOCAL_MODEL:-qwen2.5:3b-instruct-q4_K_M}
+      JQL_OLLAMA_TEMPERATURE: ${JQL_OLLAMA_TEMPERATURE:-0.1}
+      JQL_OLLAMA_TIMEOUT: ${JQL_OLLAMA_TIMEOUT:-120}
+      JQL_OLLAMA_NUM_CTX: ${JQL_OLLAMA_NUM_CTX:-2048}
+      JQL_OLLAMA_NUM_PREDICT: ${JQL_OLLAMA_NUM_PREDICT:-512}
+      JQL_OLLAMA_NUM_THREAD: ${JQL_OLLAMA_NUM_THREAD:-4}
+      JQL_OLLAMA_NUM_BATCH: ${JQL_OLLAMA_NUM_BATCH:-256}
+      JQL_OLLAMA_TOP_P: ${JQL_OLLAMA_TOP_P:-0.5}
+      JQL_OLLAMA_TOP_K: ${JQL_OLLAMA_TOP_K:-20}
+      JQL_OLLAMA_REPEAT_PENALTY: ${JQL_OLLAMA_REPEAT_PENALTY:-1.1}
+      LLM_BACKEND: ${LLM_BACKEND:-ollama}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      GROQ_TEMPERATURE: ${GROQ_TEMPERATURE:-0.1}
+      GROQ_TIMEOUT: ${GROQ_TIMEOUT:-30}
+      GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-500}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
+      JQL_ANNOTATION_FILE: ${JQL_ANNOTATION_FILE:-}
+      JIRA_URL: ${JIRA_URL:-}
+      JIRA_USER: ${JIRA_USER:-}
+      JIRA_TOKEN: ${JIRA_TOKEN:-}
+      MAX_JIRA_RESULTS: ${MAX_JIRA_RESULTS:-500}
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+        required: false
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+# -- Named volumes --------------------------------------------------------------
+volumes:
+  pgdata:
+    name: atlasmind_pgdata
+    external: true
+  ollama_models:
+    name: atlasmind_ollama_models
+    external: true
+
+# -- Networks -------------------------------------------------------------------
+networks:
+  shared:
+    external: true
+    name: atlasmind-shared
