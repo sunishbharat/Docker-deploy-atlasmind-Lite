@@ -3,8 +3,7 @@
 # Creates the shared cross-stack network if missing, then starts the stack.
 # Usage:
 #   ./start-macos.zsh                        # Groq backend
-#   ./start-macos.zsh --profile ollama       # local Ollama backend
-#   ./start-macos.zsh --profile ollama -d    # detached (background)
+#   ./start-macos.zsh --profile ollama       # local Ollama backend (waits for model pull)
 # -----------------------------------------------------------------------------
 
 docker network inspect atlasmind-shared >/dev/null 2>&1 \
@@ -20,11 +19,13 @@ docker volume inspect atlasmind_ollama_models >/dev/null 2>&1 \
 # `docker compose` (top-level flag) rather than to `up` (subcommand).
 local -a compose_flags=()
 local -a up_flags=()
+local ollama_profile=0
 
 while (( $# > 0 )); do
   case "$1" in
     --profile)
       compose_flags+=(--profile "$2")
+      [[ "$2" == "ollama" ]] && ollama_profile=1
       shift 2
       ;;
     *)
@@ -34,4 +35,19 @@ while (( $# > 0 )); do
   esac
 done
 
-docker compose -p atlasmind-lite ${compose_flags[@]+"${compose_flags[@]}"} up ${up_flags[@]+"${up_flags[@]}"}
+# Start detached and wait for all services to become healthy.
+# --wait blocks until every healthcheck passes — for ollama this means
+# the model pull is fully complete before this script returns.
+echo "Starting atlasmind-Lite stack..."
+docker compose -p atlasmind-lite ${compose_flags[@]+"${compose_flags[@]}"} up -d ${up_flags[@]+"${up_flags[@]}"}
+
+if (( ollama_profile )); then
+  echo "Waiting for Ollama model pull to complete (this may take a few minutes on first run)..."
+fi
+
+docker compose -p atlasmind-lite ${compose_flags[@]+"${compose_flags[@]}"} up --wait --no-recreate ${up_flags[@]+"${up_flags[@]}"}
+
+echo ""
+echo "Stack is ready."
+(( ollama_profile )) && echo "  Ollama:     http://localhost:11434"
+echo "  atlasmind:  http://localhost:8000"

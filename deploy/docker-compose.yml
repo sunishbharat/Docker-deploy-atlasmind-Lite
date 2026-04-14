@@ -37,7 +37,10 @@ services:
       - ollama_models:/root/.ollama
       - ../ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
     entrypoint: [ "/bin/sh", "/ollama-entrypoint.sh" ]
+    ports:
+      - "11434:11434"
     environment:
+      OLLAMA_HOST: 0.0.0.0
       JQL_LOCAL_MODEL: ${JQL_LOCAL_MODEL:-qwen2.5:3b-instruct-q4_K_M}
     healthcheck:
       test: [ "CMD-SHELL", "ollama list 2>/dev/null | grep -q \"$$JQL_LOCAL_MODEL\" || exit 1" ]
