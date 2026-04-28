@@ -3,6 +3,13 @@ set -e
 
 MODEL="${JQL_LOCAL_MODEL:-qwen2.5:3b-instruct-q4_K_M}"
 
+# Register corporate CA certificate if present (needed behind TLS-inspecting proxies)
+if [ -f /usr/local/share/ca-certificates/ollama-cert.crt ]; then
+  echo "[ollama] Registering corporate CA certificate..."
+  update-ca-certificates 2>/dev/null || true
+  cat /usr/local/share/ca-certificates/ollama-cert.crt >> /etc/ssl/certs/ca-certificates.crt
+fi
+
 echo "[ollama] Starting server..."
 ollama serve &
 OLLAMA_PID=$!

@@ -1,5 +1,9 @@
 # Environment variables — never commit secrets
 .env
+
+# Corporate CA certificates (machine-specific)
+deploy/certs/
+deploy/*.pem
 .env.local
 .env.*.local
 

@@ -23,7 +23,7 @@ if [[ " $* " == *" ollama "* ]]; then
     # Try quitting the macOS app first (graceful), then fall back to SIGTERM
     osascript -e 'quit app "Ollama"' 2>/dev/null || killall -TERM ollama 2>/dev/null || true
     # Wait up to 10 seconds for the port to be released
-    local i=0
+    i=0
     while lsof -i :11434 -sTCP:LISTEN -t >/dev/null 2>&1; do
       (( i++ ))
       if (( i > 10 )); then
@@ -50,9 +50,9 @@ docker volume inspect atlasmind_ollama_models >/dev/null 2>&1 \
 # -- Arg parsing ---------------------------------------------------------------
 # Separate --profile <name> from the remaining args so it is passed to
 # `docker compose` (top-level flag) rather than to `up` (subcommand).
-local -a compose_flags=()
-local -a up_flags=()
-local ollama_profile=0
+compose_flags=()
+up_flags=()
+ollama_profile=0
 
 while (( $# > 0 )); do
   case "$1" in

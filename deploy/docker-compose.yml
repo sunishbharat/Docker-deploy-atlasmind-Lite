@@ -32,10 +32,11 @@ services:
     image: ollama/ollama:latest
     container_name: atlasmind-lite-ollama
     logging:
-      driver: "none"
+      driver: "json-file"
     volumes:
       - ollama_models:/root/.ollama
       - ./ollama-entrypoint.sh:/ollama-entrypoint.sh:ro
+      - ./certs/ollama-cert.pem:/usr/local/share/ca-certificates/ollama-cert.crt:ro
     entrypoint: [ "/bin/sh", "/ollama-entrypoint.sh" ]
     ports:
       - "11434:11434"
@@ -76,12 +77,27 @@ services:
       GROQ_TEMPERATURE: ${GROQ_TEMPERATURE:-0.1}
       GROQ_TIMEOUT: ${GROQ_TIMEOUT:-30}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-500}
+      VLLM_URL: ${VLLM_URL:-}
+      VLLM_TIMEOUT: ${VLLM_TIMEOUT:-240}
+      VLLM_MAX_TOKENS: ${VLLM_MAX_TOKENS:-500}
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-6}
+      AWS_BEARER_TOKEN_BEDROCK: ${AWS_BEARER_TOKEN_BEDROCK:-}
+      CUSTOM_ENDPOINT: ${CUSTOM_ENDPOINT:-}
+      BEDROCK_REGION: ${BEDROCK_REGION:-custom}
+      BEDROCK_MODEL: ${BEDROCK_MODEL:-claude-sonnet-4}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-small-en-v1.5}
       JQL_ANNOTATION_FILE: ${JQL_ANNOTATION_FILE:-}
       JIRA_URL: ${JIRA_URL:-}
       JIRA_USER: ${JIRA_USER:-}
       JIRA_TOKEN: ${JIRA_TOKEN:-}
       MAX_JIRA_RESULTS: ${MAX_JIRA_RESULTS:-500}
+      STANDARD_FIELD_IDS: ${STANDARD_FIELD_IDS:-}
+      REQUESTS_CA_BUNDLE: /certs/combined-ca.pem
+      SSL_CERT_FILE: /certs/combined-ca.pem
+    volumes:
+      - ./certs/combined-ca.pem:/certs/combined-ca.pem:ro
     depends_on:
       db:
         condition: service_healthy

@@ -28,11 +28,7 @@ Open `.env` and set at minimum:
 POSTGRES_PASSWORD=<choose a password>
 ```
 
-For Groq backend, also set:
-```
-LLM_BACKEND=groq
-GROQ_API_KEY=<your-groq-api-key>
-```
+For a cloud backend (no local model download needed), also set the relevant vars — see [LLM backends](#llm-backends) below.
 
 **Step 2 — Make the startup script executable (Linux / macOS):**
 
@@ -46,8 +42,14 @@ chmod +x start.sh
 # Local Ollama backend (downloads model on first run)
 ./start.sh --profile ollama -d
 
-# Groq backend (no local model needed)
+# Any cloud backend (Groq / Claude / Bedrock / vLLM — no local model needed)
 ./start.sh -d
+```
+
+**Windows (Command Prompt) — start with inline env vars:**
+
+```cmd
+set POSTGRES_PASSWORD=postgres && set JQL_OLLAMA_TIMEOUT=240 && set MAX_JIRA_RESULTS=1000 && docker compose --profile ollama up
 ```
 
 **Verify:**
@@ -87,6 +89,60 @@ Start **without** `--profile ollama`:
 ./start.sh -d
 ```
 
+### vLLM (GPU inference server)
+
+Offloads inference to an external GPU server (e.g. a Windows machine running vLLM in WSL2, reachable over Tailscale). No local model download needed.
+
+Set in `.env`:
+```
+LLM_BACKEND=vllm
+VLLM_URL=http://100.x.x.x:8002
+```
+
+Start **without** `--profile ollama`:
+```bash
+./start.sh -d
+```
+
+The model name is auto-detected from the vLLM server's `/v1/models` endpoint.
+
+### Claude (Anthropic direct)
+
+No local model needed. Requires an Anthropic API key from [console.anthropic.com](https://console.anthropic.com).
+
+Set in `.env`:
+```
+LLM_BACKEND=claude
+CLAUDE_API_KEY=your-anthropic-key
+```
+
+Start **without** `--profile ollama`:
+```bash
+./start.sh -d
+```
+
+### Bedrock (AWS Bedrock-compatible endpoint)
+
+Uses a Bedrock-compatible endpoint authenticated with a bearer token. Both `CUSTOM_ENDPOINT` and `AWS_BEARER_TOKEN_BEDROCK` are required.
+
+Set in `.env`:
+```
+LLM_BACKEND=bedrock
+CUSTOM_ENDPOINT=https://your-bedrock-compatible-endpoint
+AWS_BEARER_TOKEN_BEDROCK=your-bearer-token
+```
+
+Optionally override the model or region:
+```
+BEDROCK_MODEL=claude-sonnet-4
+BEDROCK_REGION=custom
+```
+
+Start **without** `--profile ollama`:
+```bash
+./start.sh -d
+```
+
 ---
 
 ## Jira integration (optional)
@@ -96,6 +152,23 @@ Add to `.env`:
 JIRA_URL=https://yourorg.atlassian.net
 JIRA_USER=you@example.com
 JIRA_TOKEN=your-api-token
+```
+
+### Custom Jira fields (`STANDARD_FIELD_IDS`)
+
+To control which Jira fields are used for context, set `STANDARD_FIELD_IDS` as a comma-separated list.
+
+In `docker-compose.yml` under the `atlasmind` service:
+```yaml
+services:
+  atlasmind:
+    environment:
+      - STANDARD_FIELD_IDS=key,summary,assignee,priority,issuetype,created,resolutiondate
+```
+
+Then restart:
+```bash
+docker compose down && docker compose up
 ```
 
 ---
@@ -113,6 +186,22 @@ curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{"query": "list open bugs assigned to me"}'
 ```
+
+---
+
+## Troubleshooting
+
+### `external volume "atlasmind_pgdata" not found`
+
+The startup scripts (`start.sh` / `start-macos.zsh`) create the required Docker volumes and network automatically. If you run `docker compose up` directly, you must create them first:
+
+```bash
+docker volume create atlasmind_pgdata
+docker volume create atlasmind_ollama_models
+docker network create atlasmind-shared
+```
+
+Then retry your `docker compose up` command.
 
 ---
 
