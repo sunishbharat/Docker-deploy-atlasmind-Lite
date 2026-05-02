@@ -116,6 +116,14 @@ LLM_BACKEND=claude
 CLAUDE_API_KEY=your-anthropic-key
 ```
 
+Optionally override the model or inference settings:
+```
+CLAUDE_MODEL=claude-sonnet-4-6
+CLAUDE_TEMPERATURE=0.1
+CLAUDE_TIMEOUT=30
+CLAUDE_MAX_TOKENS=500
+```
+
 Start **without** `--profile ollama`:
 ```bash
 ./start.sh -d
@@ -132,10 +140,13 @@ CUSTOM_ENDPOINT=https://your-bedrock-compatible-endpoint
 AWS_BEARER_TOKEN_BEDROCK=your-bearer-token
 ```
 
-Optionally override the model or region:
+Optionally override the model, region, or inference settings:
 ```
-BEDROCK_MODEL=claude-sonnet-4
+BEDROCK_MODEL=claude-sonnet-4.6
 BEDROCK_REGION=custom
+BEDROCK_TEMPERATURE=0.1
+BEDROCK_TIMEOUT=30
+BEDROCK_MAX_TOKENS=500
 ```
 
 Start **without** `--profile ollama`:
@@ -156,19 +167,22 @@ JIRA_TOKEN=your-api-token
 
 ### Custom Jira fields (`STANDARD_FIELD_IDS`)
 
-To control which Jira fields are used for context, set `STANDARD_FIELD_IDS` as a comma-separated list.
+To control which Jira fields are used for context, set `STANDARD_FIELD_IDS` as a comma-separated list in `.env`:
 
-In `docker-compose.yml` under the `atlasmind` service:
-```yaml
-services:
-  atlasmind:
-    environment:
-      - STANDARD_FIELD_IDS=key,summary,assignee,priority,issuetype,created,resolutiondate
+```
+STANDARD_FIELD_IDS=key,summary,assignee,priority,issuetype,created,resolutiondate
 ```
 
-Then restart:
+Then recreate the container to pick up the new value:
 ```bash
-docker compose down && docker compose up
+docker compose -p atlasmind-lite up -d --force-recreate atlasmind
+```
+
+> **Note:** `docker compose restart` does **not** re-read `.env` — it reuses the existing container's environment. Always use `--force-recreate` when changing env vars.
+
+Verify the value was applied:
+```bash
+docker exec atlasmind-lite-cpu printenv STANDARD_FIELD_IDS
 ```
 
 ---
