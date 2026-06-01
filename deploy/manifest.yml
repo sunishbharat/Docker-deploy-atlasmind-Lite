@@ -1,0 +1,79 @@
+---
+# Cloud Foundry manifest for atlasmind-Lite
+# Usage: cd deploy && cf push
+#
+# ── POST-PUSH (one-time, after first cf push) ─────────────────────────────────
+# 1. Map an internal route so atlasmind can reach the DB without going public:
+#      cf map-route atlasmind-db apps.internal --hostname atlasmind-db
+#
+# 2. Allow container-to-container traffic on the Postgres port:
+#      cf add-network-policy atlasmind --destination-app atlasmind-db \
+#        --port 5432 --protocol tcp
+#
+# ── STORAGE WARNING ───────────────────────────────────────────────────────────
+# CF has no persistent volumes by default. DB data will be lost on restarts.
+# For production, use a CF-managed Postgres service and remove atlasmind-db.
+# ─────────────────────────────────────────────────────────────────────────────
+
+applications:
+
+  # ── 1. pgvector database ─────────────────────────────────────────────────────
+  - name: atlasmind-db
+    docker:
+      image: pgvector/pgvector:pg17
+    memory: 512M
+    disk_quota: 2G
+    instances: 1
+    health-check-type: port
+    no-route: true                       # only accessible via internal route (see post-push step 1)
+    env:
+      POSTGRES_DB: jql_vectordb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: CHANGE_ME       # must match DATABASE_URL below
+
+  # ── 2. atlasmind backend ──────────────────────────────────────────────────────
+  - name: atlasmind
+    docker:
+      image: ghcr.io/sunishbharat/atlasmind-lite-cpu:latest
+    memory: 2G
+    disk_quota: 4G
+    instances: 1
+    health-check-type: http
+    health-check-http-endpoint: /health
+    env:
+      # ── Database ─────────────────────────────────────────────────────────────
+      # Uses the CF internal route mapped to atlasmind-db (post-push step 1+2)
+      DATABASE_URL: postgresql://postgres:CHANGE_ME@atlasmind-db.apps.internal:5432/jql_vectordb
+
+      # ── LLM backend ──────────────────────────────────────────────────────────
+      LLM_BACKEND: bedrock
+      AWS_BEARER_TOKEN_BEDROCK: CHANGE_ME
+      CUSTOM_ENDPOINT: CHANGE_ME
+      BEDROCK_REGION: custom
+      BEDROCK_MODEL: claude-sonnet-4.6
+      BEDROCK_TEMPERATURE: "0.1"
+      BEDROCK_TIMEOUT: "30"
+      BEDROCK_MAX_TOKENS: "650"
+
+      # ── Embedding ─────────────────────────────────────────────────────────────
+      EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+      EMBEDDING_BATCH_SIZE: "256"
+
+      # ── Jira (optional) ───────────────────────────────────────────────────────
+      JIRA_URL: ""
+      JIRA_USER: ""
+      JIRA_TOKEN: ""
+      MAX_JIRA_RESULTS: "500"
+      STANDARD_FIELD_IDS: "key,summary,assignee,priority,issuetype,created,resolutiondate"
+
+      # ── Query / retrieval tuning ──────────────────────────────────────────────
+      JQL_MAX_ATTEMPTS: "4"
+      MAX_INTENT_FIELDS: "5"
+      SEMANTIC_FIELD_THRESHOLD: "0.45"
+      VALUE_AUTO_CORRECT_THRESHOLD: "0.15"
+      VALUE_HINT_THRESHOLD: "0.40"
+      VALUE_HINT_MAX_CANDIDATES: "3"
+      VALUE_PROMPT_MAX_CANDIDATES: "3"
+      VALUE_FIELD_SUGGEST_THRESHOLD: "0.20"
+      MAX_ALLOWED_VALUES_IN_DESC: "20"
+      MAX_VALUES_FOR_EMBEDDING: "50"
